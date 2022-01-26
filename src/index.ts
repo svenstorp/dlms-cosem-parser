@@ -1,5 +1,5 @@
-import { start } from 'repl';
 import { MeterData } from './meterdata';
+import { Subject } from 'rxjs';
 
 let polycrc = require('polycrc');
 
@@ -9,6 +9,8 @@ class DLMSCOSEMParser {
   private buff: Buffer = Buffer.alloc(0);
   private currentOffset: number = 0;
   private currentMeterData: MeterData = new MeterData();
+
+  public parsedDataAvailable: Subject<MeterData> = new Subject<MeterData>();
 
   pushData(d: Buffer) {
     this.buff = Buffer.concat([this.buff, d]);
@@ -115,8 +117,8 @@ class DLMSCOSEMParser {
     dataObject.payload = this.parsePayload();
 
     if (dataObject.payload !== undefined) {
-      // TODO: emit!
       this.currentMeterData = dataObject;
+      this.parsedDataAvailable.next(dataObject);
     }
 
     this.buff = Buffer.alloc(0);

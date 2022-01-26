@@ -43,7 +43,10 @@ function replacer(key: any, value: any) {
 }
 
 test('Validate parser', () => {
-  var parser: DLMSCOSEMParser = new DLMSCOSEMParser();
+  let parser: DLMSCOSEMParser = new DLMSCOSEMParser();
+  parser.parsedDataAvailable.subscribe((meterData) => {
+    console.log(JSON.stringify(meterData, replacer));
+  });
   parser.pushData(testData);
   console.log(JSON.stringify(parser.result(), replacer));
 });
