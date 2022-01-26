@@ -603,3 +603,4 @@ class DLMSCOSEMParser {
 }
 
 export { DLMSCOSEMParser };
+export * from './meterdata';

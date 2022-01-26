@@ -1,8 +1,8 @@
 {
   "name": "dlms-cosem-parser",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "A DLMS/COSEM parser parsing binary data into JSON",
-  "main": "index.js",
+  "main": "./lib/index.js",
   "scripts": {
     "test": "jest --config jestconfig.json",
     "build": "tsc",
