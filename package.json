@@ -1,6 +1,6 @@
 {
   "name": "dlms-cosem-parser",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "A DLMS/COSEM parser parsing binary data into JSON",
   "main": "./lib/index.js",
   "scripts": {

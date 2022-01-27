@@ -13,6 +13,22 @@ class DLMSCOSEMParser {
   public parsedDataAvailable: Subject<MeterData> = new Subject<MeterData>();
 
   pushData(d: Buffer) {
+    // Check if buffer is empty, if that is the case, search for proper start of data
+    if (this.buff.length == 0) {
+      let tmpOffset = 0;
+      for (; tmpOffset < d.length; tmpOffset++) {
+        if (d[tmpOffset] == this.AXDRStartStopFlag) {
+          break;
+        }
+      }
+      if (tmpOffset < d.length) {
+        d = d.slice(tmpOffset, d.length);
+      }
+      else {
+        return;
+      }
+    }
+
     this.buff = Buffer.concat([this.buff, d]);
 
     this.parseBuffer();
