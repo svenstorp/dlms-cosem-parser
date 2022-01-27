@@ -1,7 +1,6 @@
 import { MeterData } from './meterdata';
 import { Subject } from 'rxjs';
-
-let polycrc = require('polycrc');
+import { crc  } from 'polycrc';
 
 class DLMSCOSEMParser {
   private readonly MaxBufferSize = 2048;
@@ -13,20 +12,9 @@ class DLMSCOSEMParser {
   public parsedDataAvailable: Subject<MeterData> = new Subject<MeterData>();
 
   pushData(d: Buffer) {
-    // Check if buffer is empty, if that is the case, search for proper start of data
-    if (this.buff.length == 0) {
-      let tmpOffset = 0;
-      for (; tmpOffset < d.length; tmpOffset++) {
-        if (d[tmpOffset] == this.AXDRStartStopFlag) {
-          break;
-        }
-      }
-      if (tmpOffset < d.length) {
-        d = d.slice(tmpOffset, d.length);
-      }
-      else {
-        return;
-      }
+    // Check if buffer is overful, and should be truncated
+    if (this.buff.length + d.length > this.MaxBufferSize) {
+      this.buff = Buffer.alloc(0);
     }
 
     this.buff = Buffer.concat([this.buff, d]);
@@ -45,13 +33,12 @@ class DLMSCOSEMParser {
       return;
     }
 
-    // Search for start  offset
+    // Search for start offset
     while (startOffset < this.buff.length) {
-      if (this.buff[startOffset] == this.AXDRStartStopFlag) {
+      if (this.buff[startOffset++] == this.AXDRStartStopFlag) {
         break;
       }
     }
-    startOffset++;
 
     if (startOffset >= this.buff.length) {
       return;
@@ -83,15 +70,15 @@ class DLMSCOSEMParser {
     const frameCRC =
       (this.buff[startOffset + frameInfo.dataLength - 2 + 1] << 8) | this.buff[startOffset + frameInfo.dataLength - 2];
 
-    const crc16 = polycrc.crc(16, 0x1021, 0xffff, 0xffff, true);
+    const crc16 = crc(16, 0x1021, 0xffff, 0xffff, true);
     if (headerCRC != crc16(this.buff.slice(startOffset, this.currentOffset))) {
-      // TODO: LOG!!!
+      console.warn('Invalid header CRC'); // TODO: use a log library?
       this.buff = Buffer.alloc(0);
       return;
     }
 
-    if (frameCRC != crc16(this.buff.slice(startOffset, frameInfo.dataLength - 1))) {
-      // TODO: LOG!!!
+    if (frameCRC != crc16(this.buff.slice(startOffset, startOffset + frameInfo.dataLength - 2))) {
+      console.warn('Invalid frame CRC'); // TODO: use a log library?
       this.buff = Buffer.alloc(0);
       return;
     }
@@ -132,12 +119,17 @@ class DLMSCOSEMParser {
 
     dataObject.payload = this.parsePayload();
 
+    if (this.currentOffset + 3 < this.buff.length) {
+      this.buff = this.buff.slice(this.currentOffset);
+    } else {
+      this.buff = Buffer.alloc(0);
+    }
+    this.currentOffset = 0;
+
     if (dataObject.payload !== undefined) {
       this.currentMeterData = dataObject;
       this.parsedDataAvailable.next(dataObject);
     }
-
-    this.buff = Buffer.alloc(0);
   }
 
   private parsePayload(): any {

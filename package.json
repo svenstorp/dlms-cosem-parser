@@ -1,6 +1,6 @@
 {
   "name": "dlms-cosem-parser",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "A DLMS/COSEM parser parsing binary data into JSON",
   "main": "./lib/index.js",
   "scripts": {
@@ -32,6 +32,7 @@
   "devDependencies": {
     "@types/jest": "^27.4.0",
     "@types/node": "^17.0.10",
+    "@types/polycrc": "^0.1.0",
     "jest": "^27.4.7",
     "prettier": "^2.5.1",
     "ts-jest": "^27.1.3",
