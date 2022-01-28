@@ -1,6 +1,6 @@
 import { MeterData } from './meterdata';
 import { Subject } from 'rxjs';
-import { crc  } from 'polycrc';
+import { crc } from 'polycrc';
 
 class DLMSCOSEMParser {
   private readonly MaxBufferSize = 2048;
@@ -73,13 +73,15 @@ class DLMSCOSEMParser {
     const crc16 = crc(16, 0x1021, 0xffff, 0xffff, true);
     if (headerCRC != crc16(this.buff.slice(startOffset, this.currentOffset))) {
       console.warn('Invalid header CRC'); // TODO: use a log library?
-      this.buff = Buffer.alloc(0);
+      // Skip up to byte after startbyte (and we will start searching from there next time)
+      this.buff = this.buff.slice(startOffset);
       return;
     }
 
     if (frameCRC != crc16(this.buff.slice(startOffset, startOffset + frameInfo.dataLength - 2))) {
       console.warn('Invalid frame CRC'); // TODO: use a log library?
-      this.buff = Buffer.alloc(0);
+      // Skip up to byte after startbyte (and we will start searching from there next time)
+      this.buff = this.buff.slice(startOffset);
       return;
     }
 
