@@ -45,8 +45,12 @@ class DLMSCOSEMParser {
     }
 
     // Sometimes there are duplicated start flags, strip out first
-    if (this.buff[startOffset] == this.AXDRStartStopFlag) {
+    while (this.buff[startOffset] == this.AXDRStartStopFlag && startOffset < this.buff.length) {
       startOffset++;
+    }
+
+    if (startOffset + 14 >= this.buff.length) {
+      return;
     }
 
     this.currentOffset = startOffset;
@@ -56,7 +60,7 @@ class DLMSCOSEMParser {
     this.frameFormatLength(frameInfo);
 
     // If we haven't received enough data yet, return
-    if (frameInfo.dataLength > this.buff.length) {
+    if (startOffset + frameInfo.dataLength >= this.buff.length) {
       return;
     }
 
@@ -74,14 +78,14 @@ class DLMSCOSEMParser {
     if (headerCRC != crc16(this.buff.slice(startOffset, this.currentOffset))) {
       console.warn('Invalid header CRC'); // TODO: use a log library?
       // Skip up to byte after startbyte (and we will start searching from there next time)
-      this.buff = this.buff.slice(startOffset);
+      this.buff = this.buff.slice(startOffset, undefined);
       return;
     }
 
     if (frameCRC != crc16(this.buff.slice(startOffset, startOffset + frameInfo.dataLength - 2))) {
       console.warn('Invalid frame CRC'); // TODO: use a log library?
       // Skip up to byte after startbyte (and we will start searching from there next time)
-      this.buff = this.buff.slice(startOffset);
+      this.buff = this.buff.slice(startOffset, undefined);
       return;
     }
 
@@ -121,8 +125,8 @@ class DLMSCOSEMParser {
 
     dataObject.payload = this.parsePayload();
 
-    if (this.currentOffset + 3 < this.buff.length) {
-      this.buff = this.buff.slice(this.currentOffset);
+    if (this.currentOffset + 2 < this.buff.length) {
+      this.buff = this.buff.slice(this.currentOffset + 2, undefined);
     } else {
       this.buff = Buffer.alloc(0);
     }
