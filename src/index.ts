@@ -449,7 +449,16 @@ class DLMSCOSEMParser {
           ':' +
           this.leftPad(binData[6], 2) +
           ':' +
-          this.leftPad(binData[7], 2);
+          this.leftPad(binData[7], 2) +
+          ',' +
+          binData[8] +
+          ' ';
+        const offset = new Int16Array((binData[9] << 8) + binData[10])[0];
+        if (offset >= 0) {
+          entry[0] += '+';
+        }
+        entry[0] += offset;
+
         return entry;
       default:
         return entry;
