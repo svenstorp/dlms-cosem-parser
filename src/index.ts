@@ -299,26 +299,26 @@ class DLMSCOSEMParser {
       case 20: // int64
         retVal = BigInt(
           (this.buff[this.currentOffset] << 56) |
-            (this.buff[this.currentOffset + 1] << 48) |
-            (this.buff[this.currentOffset + 2] << 40) |
-            (this.buff[this.currentOffset + 3] << 32) |
-            (this.buff[this.currentOffset + 4] << 24) |
-            (this.buff[this.currentOffset + 5] << 16) |
-            (this.buff[this.currentOffset + 6] << 8) |
-            this.buff[this.currentOffset + 7],
+          (this.buff[this.currentOffset + 1] << 48) |
+          (this.buff[this.currentOffset + 2] << 40) |
+          (this.buff[this.currentOffset + 3] << 32) |
+          (this.buff[this.currentOffset + 4] << 24) |
+          (this.buff[this.currentOffset + 5] << 16) |
+          (this.buff[this.currentOffset + 6] << 8) |
+          this.buff[this.currentOffset + 7],
         );
         this.currentOffset += 8;
         break;
       case 21: // uint64
         retVal = BigInt(
           (this.buff[this.currentOffset] << 56) |
-            (this.buff[this.currentOffset + 1] << 48) |
-            (this.buff[this.currentOffset + 2] << 40) |
-            (this.buff[this.currentOffset + 3] << 32) |
-            (this.buff[this.currentOffset + 4] << 24) |
-            (this.buff[this.currentOffset + 5] << 16) |
-            (this.buff[this.currentOffset + 6] << 8) |
-            this.buff[this.currentOffset + 7],
+          (this.buff[this.currentOffset + 1] << 48) |
+          (this.buff[this.currentOffset + 2] << 40) |
+          (this.buff[this.currentOffset + 3] << 32) |
+          (this.buff[this.currentOffset + 4] << 24) |
+          (this.buff[this.currentOffset + 5] << 16) |
+          (this.buff[this.currentOffset + 6] << 8) |
+          this.buff[this.currentOffset + 7],
         );
         this.currentOffset += 8;
         break;
@@ -469,20 +469,20 @@ class DLMSCOSEMParser {
     return byteVal & 0x80
       ? '1'
       : '0' + (byteVal & 0x40)
-      ? '1'
-      : '0' + (byteVal & 0x20)
-      ? '1'
-      : '0' + (byteVal & 0x10)
-      ? '1'
-      : '0' + (byteVal & 0x08)
-      ? '1'
-      : '0' + (byteVal & 0x04)
-      ? '1'
-      : '0' + (byteVal & 0x02)
-      ? '1'
-      : '0' + (byteVal & 0x01)
-      ? '1'
-      : '0';
+        ? '1'
+        : '0' + (byteVal & 0x20)
+          ? '1'
+          : '0' + (byteVal & 0x10)
+            ? '1'
+            : '0' + (byteVal & 0x08)
+              ? '1'
+              : '0' + (byteVal & 0x04)
+                ? '1'
+                : '0' + (byteVal & 0x02)
+                  ? '1'
+                  : '0' + (byteVal & 0x01)
+                    ? '1'
+                    : '0';
   }
 
   private toEnumString(enumVal: number): string {
@@ -625,5 +625,135 @@ class DLMSCOSEMParser {
   }
 }
 
+class IEC6205621Parser {
+  private readonly MaxBufferSize = 2048;
+  private readonly ADNStart = '/ADN9';
+  private buff: string = '';
+  private currentMeterData: MeterData = new MeterData();
+
+  public parsedDataAvailable: Subject<MeterData> = new Subject<MeterData>();
+
+  pushData(d: Buffer) {
+    // Check if buffer is overful, and should be truncated
+    if (this.buff.length + d.length > this.MaxBufferSize) {
+      this.buff = '';
+    }
+
+    this.buff += d.toString();
+
+    this.parseBuffer();
+  }
+
+  result(): MeterData {
+    return this.currentMeterData;
+  }
+
+  private parseBuffer() {
+    let startOffset = 0;
+
+    if (this.buff.length < 5) {
+      return;
+    }
+
+    // Search for start offset
+    while (startOffset < this.buff.length) {
+      if (this.buff.startsWith(this.ADNStart, startOffset)) {
+        break;
+      }
+      startOffset++;
+    }
+
+    if (startOffset >= this.buff.length) {
+      return;
+    }
+
+    // Trim string
+    this.buff = this.buff.substring(startOffset);
+
+    // Check if full message received (ending with !)
+    if (!this.buff.includes('!')) {
+      return;
+    }
+
+    // Initialize JSON object
+    const dataObject: MeterData = new MeterData();
+
+    dataObject.payload = this.parsePayload(this.buff.substring(0, this.buff.indexOf('!')));
+
+    if (dataObject.payload !== undefined) {
+      this.currentMeterData = dataObject;
+      this.parsedDataAvailable.next(dataObject);
+    }
+
+    this.buff = this.buff.substring(this.buff.indexOf('!') + 1);
+  }
+
+  private leftPad(num: number, targetLength: number): string {
+    let output = num + '';
+    while (output.length < targetLength) {
+      output = '0' + output;
+    }
+    return output;
+  }
+
+  private parsePayload(payload: string): any {
+    const retMap: Map<string, any> = new Map<string, any>();
+
+    console.log('Parsing payload');
+
+    const lines = payload.split('\r\n');
+    for (let line of lines) {
+      const matches = line.match(/([0-9\-\.:]+)\((.*)\)/);
+      if (matches) {
+        let name = matches[1] + '.255';
+        let val: any[] = [];
+        val[0] = matches[2];
+        // Parse well known rows first
+        if (matches[1] == '0-0:1.0.0') {
+          // Date
+          val[0] =
+            this.leftPad(2000 + Number(matches[2].substring(0, 2)), 4) +
+            '-' +
+            this.leftPad(Number(matches[2].substring(2, 4)), 2) +
+            '-' +
+            this.leftPad(Number(matches[2].substring(4, 6)), 2) +
+            ' ' +
+            this.leftPad(Number(matches[2].substring(6, 8)), 2) +
+            ':' +
+            this.leftPad(Number(matches[2].substring(8, 10)), 2) +
+            ':' +
+            this.leftPad(Number(matches[2].substring(10, 12)), 2) +
+            ',0';
+        } else {
+          const valMatches = matches[2].match(/([0-9\.]+)\*(.+)/);
+          if (valMatches) {
+            // Account for common prefixes
+            if (valMatches[2].startsWith('m')) {
+              val[0] = Number(valMatches[1]) / 1000;
+              val[1] = valMatches[2].substring(1);
+            } else if (valMatches[2].startsWith('k')) {
+              val[0] = Number(valMatches[1]) * 1000;
+              val[1] = valMatches[2].substring(1);
+            } else if (valMatches[2].startsWith('M')) {
+              val[0] = Number(valMatches[1]) * 1000000;
+              val[1] = valMatches[2].substring(1);
+            } else if (valMatches[2].startsWith('G')) {
+              val[0] = Number(valMatches[1]) * 1000000000;
+              val[1] = valMatches[2].substring(1);
+            } else {
+              val[0] = Number(valMatches[1]);
+              val[1] = valMatches[2];
+            }
+          }
+        }
+        retMap.set(name, val);
+      }
+    }
+
+    return retMap;
+  }
+}
+
 export { DLMSCOSEMParser };
+export { IEC6205621Parser };
 export * from './meterdata';
